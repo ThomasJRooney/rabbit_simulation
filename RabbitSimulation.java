@@ -12,6 +12,8 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.util.ArrayList;
 import java.util.Scanner;
+import java.util.Random;
+import static java.lang.Math.sqrt;
 
 public class RabbitSimulation {
 
@@ -53,19 +55,72 @@ public class RabbitSimulation {
           for(int j = 0; j < seed.get(k)[1]; j++){
             addMale(rabbits, data[i]);
           }
-          //repeat simulateDay 365 times
+          // repeat simulateDay 365 times
           for(int j = 0; j < 365; j++){
             //update trials
-            simulateDay(rabbits, data[i]);
+            Integer size = rabbits.size();
+            for(int l = 0; l < size; l++){
+              // work on one rabbit at a time
+              Rabbit r = rabbits.get(l);
+              // update every rabbits age
+              r.updateAge();
+
+              if(r.getSex() == 'f'){
+                if(r.getAge() >= 100){
+                  // female case
+                  if(r.isBirth()){
+                    // have birth
+                    Integer baby = r.getLitterSize();
+                    Random rand = new Random();
+                    for(int p = 0; p < baby; p++){
+                      int rand_i = rand.nextInt(2);
+                      if(rand_i == 1){
+                        addMale(rabbits, data[i]);
+                      } else {
+                        addFemale(rabbits, data[i]);
+                      }
+                    }
+                    // update rabbits data
+                    r.setPregnant(false);
+                    r.setBirth(false);
+                    r.setBreed(false);
+                  }
+
+                  if(r.isPregnant()){
+                    r.updateGestationDay();
+                    if(r.getGestationDay() == r.getGestationalPeriod()){
+                      r.setBirth(true);
+                      r.setPregnant(false);
+                      r.setBreed(false);
+                    }
+                  }
+
+                  if(r.isBreed()){
+                    r.setPregnant(true);
+                    r.setGestational();
+                    r.resetGestationDay();
+                    r.setBreed(false);
+                    r.setBirth(false);
+                  } else {
+                    if(r.getAge() == 100){
+                      r.isBreed();
+                    }
+                    if(!r.isPregnant() && !r.isBirth()){
+                      r.updateNonBreedDay();
+                    }
+                  }
+                }
+              }
+            }
           }
           System.out.print("Trial " + i + ": " + data[i][0] + " was the final population of rabbits; ");
           System.out.println(data[i][1] + " does, " + data[i][2] + " bucks.");
         }
-        int[] avg = getAverage(data);
-        int[] std = getStd(data);
-        System.out.println("Average number of rabbits: " + avg[0] + " with standard deviation of " + std[0] + ".");
-        System.out.println("Average number of female rabbits: " + avg[1] + " with standard deviation of " + std[1] + ".");
-        System.out.println("Average number of male rabbits: " + avg[2] + " with standard deviation of " + std[2] + ".\n");
+        double[] avg = getAverage(data);
+        double[] std = getStd(data);
+        System.out.println("Average number of rabbits: " + String.format("%.3f", avg[0]) + " with standard deviation of " + String.format("%.3f", std[0]) + ".");
+        System.out.println("Average number of female rabbits: " + String.format("%.3f", avg[1]) + " with standard deviation of " + String.format("%.3f", std[1]) + ".");
+        System.out.println("Average number of male rabbits: " + String.format("%.3f", avg[2]) + " with standard deviation of " + String.format("%.3f", std[2]) + ".\n");
       }
     }//main
 
@@ -93,35 +148,6 @@ public class RabbitSimulation {
       return(seed);
     }
 
-    public static void simulateDay(ArrayList<Rabbit> rabbits, int[] data){
-      for(int i = 0; i < rabbits.size(); i++){
-        // work on one rabbit at a time
-        Rabbit r = rabbits.get(i);
-        r.updateAge();
-        if(r.getSex() == 'f'){
-          // female case
-          if(r.isPregnant()){
-            r.updateGestational();
-          }
-
-          if(r.isBreed()){
-            r.setPregnant(true);
-          } else {
-            r.updateBreed();
-          }
-
-          if(r.isBirth()){
-            r.setPregnant(false);
-            r.setBirth(false);
-            Integer baby = r.getLitterSize();
-            for(int j = 0; j < baby; j++){
-              addRabbit(rabbits, data);
-            }
-          }
-        }
-      }
-    }
-
     public static void addFemale(ArrayList<Rabbit> rabbits, int[] data){
       Rabbit rabbit = new Rabbit('f');
       rabbits.add(rabbit);
@@ -136,22 +162,10 @@ public class RabbitSimulation {
       data[0] += 1;
     }
 
-    public static void addRabbit(ArrayList<Rabbit> rabbits, int[] data){
-      Rabbit rabbit = new Rabbit();
-      rabbits.add(rabbit);
-      if(rabbit.getSex() == 'm'){
-        data[2] += 1;
-        data[0] += 1;
-      } else {
-        data[1] += 1;
-        data[0] += 1;
-      }
-    }
-
-    public static int[] getAverage(int[][] arr){
-      Integer rSum = 0;
-      Integer fSum = 0;
-      Integer mSum = 0;
+    public static double[] getAverage(int[][] arr){
+      double rSum = 0;
+      double fSum = 0;
+      double mSum = 0;
       for(int i = 0; i < 10; i++){
         rSum += arr[i][0];
         fSum += arr[i][1];
@@ -160,23 +174,25 @@ public class RabbitSimulation {
       rSum /= 10;
       fSum /= 10;
       mSum /= 10;
-      int[] avg = {rSum, fSum, mSum};
+      double[] avg = {rSum, fSum, mSum};
       return(avg);
     }
 
-    public static int[] getStd(int[][] arr){
-      Integer rSum = 0;
-      Integer fSum = 0;
-      Integer mSum = 0;
+    public static double[] getStd(int[][] arr){
+      double[] avg = getAverage(arr);
+
+      double rStd = 0;
+      double fStd = 0;
+      double mStd = 0;
       for(int i = 0; i < 10; i++){
-        rSum += arr[i][0];
-        fSum += arr[i][1];
-        mSum += arr[i][2];
+        rStd += ((arr[i][0] - avg[0])*(arr[i][0] - avg[0])) / 10;
+        fStd += ((arr[i][1] - avg[1])*(arr[i][1] - avg[1])) / 10;
+        mStd += ((arr[i][2] - avg[2])*(arr[i][2] - avg[2])) / 10;
       }
-      rSum /= 10;
-      fSum /= 10;
-      mSum /= 10;
-      int[] avg = {rSum, fSum, mSum};
-      return(avg);
+      rStd = Math.sqrt(rStd);
+      fStd = Math.sqrt(fStd);
+      mStd = Math.sqrt(mStd);
+      double[] std = {rStd, fStd, mStd};
+      return(std);
     }
 }
